@@ -63,7 +63,8 @@ def student_main():
                 func.max(Log.prompt_datetime).label('latest_datetime')
             ).filter(
                 Log.user_id == session['user_id'],
-                Log.subject == session['selected_subject']
+                Log.subject == session['selected_subject'],
+                Log.prompt != "New Chat Started"
             ).group_by(Log.qa_id).subquery()
 
             # qa_history を取得する際のクエリ
