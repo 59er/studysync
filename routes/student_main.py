@@ -119,6 +119,8 @@ def subject_selection():
     if 'selected_subject' in session:
         del session['selected_subject']
 
+    subjects = load_subjects()  # 教科リストを読み込む
+
     if request.method == 'POST':
         selected_subject = request.form.get('subject')
         if selected_subject:
@@ -126,7 +128,7 @@ def subject_selection():
             return redirect(url_for('student_main.student_main'))
     
     # student_main.subject_selectionをsubmit_urlとして渡す
-    return render_template('subject_selection.html', 
+    return render_template('subject_selection.html', subjects=subjects, 
                          submit_url='student_main.subject_selection')
 
 
