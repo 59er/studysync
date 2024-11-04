@@ -1,0 +1,154 @@
+/* 共通のスタイル（PCとモバイルで適用） */
+.login-page-container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    padding: 20px;
+    background-color: #f3f4f6;
+}
+
+.login-body {
+    font-family: 'Roboto', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    width: 100%;
+    padding: 0;
+    margin: 0 auto;
+}
+
+.login-title {
+    font-family: Verdana, sans-serif;
+    font-size: 26px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 1px;
+    text-align: left;
+    width: 100%;
+    padding-left: 0px; 
+}
+
+.login-container {
+    display: flex;
+    margin-top: 20px;
+    width: 100%;
+    max-width: 1000px; /* 最大幅を設定 */
+    gap: 10px;
+    justify-content: space-between;
+}
+
+.login-form-container {
+    flex: 1 1 60%; /* レスポンシブな幅を指定 */
+    padding: 30px;
+    background-color: #f9fafb;
+    border-radius: 6px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+    border: 1px solid #ced4da;
+}
+
+.login-image-container {
+    flex: 1 1 40%; /* レスポンシブな幅を指定 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+    border: 1px solid #ced4da;
+}
+
+.login-image-container img {
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    background-color: #eaf2ff; /* 淡いブルーに変更 */
+    border-radius: 4px;
+}
+
+.password-container {
+    position: relative;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 1px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+}
+
+.btn-login {
+    background-color: transparent;
+    color: #2563eb;
+    font-weight: bold;
+    padding: 10px 15px;
+    border: 2px solid #2563eb;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 20px;
+    align-self: flex-start;  /* 左詰めにするために追加 */
+}
+
+.btn-login:hover {
+    background-color: #2563eb;
+    color: #ffffff;
+}
+
+/* モバイルのみ適用するスタイル（画面幅768px未満） */
+@media (max-width: 768px) {
+    .login-container {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .login-form-container,
+    .login-image-container {
+        width: 100%;
+        max-width: none; /* 最大幅の制限を解除 */
+        margin-bottom: 20px;
+    }
+
+    .login-title {
+        text-align: center; /* タイトルを中央揃えに */
+    }
+}
+
+html {
+    overflow-y: scroll;
+  }
+
+::-webkit-scrollbar {
+width: 5px;
+}
+
+::-webkit-scrollbar-track {
+background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+background: rgba(0, 0, 0, 0.2);
+border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+background: rgba(0, 0, 0, 0.4);
+}

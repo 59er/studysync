@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}ログデータダウンロード{% endblock %}
+
+{% block extra_css %}
+<style>
+    .export-logs-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: bold;
+        color: #333;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background-color: white;
+    }
+
+    .btn-primary {
+        width: 100%;
+        padding: 10px;
+        background-color: #007bff;
+        border: none;
+        color: white;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        margin-top: 20px;
+    }
+
+    .btn-primary:hover {
+        background-color: #0056b3;
+    }
+
+    .alert {
+        padding: 12px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+    }
+
+    .alert-warning {
+        background-color: #fff3cd;
+        border: 1px solid #ffecb5;
+        color: #856404;
+    }
+
+    .alert-error {
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="export-logs-container">
+    <h2>ログデータダウンロード</h2>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="post" id="exportForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="form-group">
+            <label for="admission_year_filter">入学年度</label>
+            <select name="admission_year_filter" id="admission_year_filter" class="form-control">
+                {% for year in admission_years %}
+                    <option value="{{ year }}" {% if admission_year_filter == year %}selected{% endif %}>{{ year }}年度</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="grade_filter">学年</label>
+            <select name="grade_filter" id="grade_filter" class="form-control">
+                <option value="1" {% if grade_filter == '1' %}selected{% endif %}>高校1年</option>
+                <option value="2" {% if grade_filter == '2' %}selected{% endif %}>高校2年</option>
+                <option value="3" {% if grade_filter == '3' %}selected{% endif %}>高校3年</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="subject_filter">科目</label>
+            <select name="subject_filter" id="subject_filter" class="form-control">
+                <option value="全科目">全科目</option>
+                {% for subject in subjects %}
+                    <option value="{{ subject }}" {% if subject_filter == subject %}selected{% endif %}>{{ subject }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="class_filter">クラス</label>
+            <select name="class_filter" id="class_filter" class="form-control">
+                <option value="全クラス">全クラス</option>
+                {% for class_id in available_classes %}
+                    <option value="{{ class_id }}" {% if class_filter == class_id %}selected{% endif %}>{{ class_id }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="from_date">データ期間（開始日）</label>
+            <input type="date" name="from_date" id="from_date" class="form-control" 
+                   value="{{ from_date }}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="to_date">データ期間（終了日）</label>
+            <input type="date" name="to_date" id="to_date" class="form-control" 
+                   value="{{ to_date }}" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary">ダウンロード</button>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fromDate = document.getElementById('from_date');
+    const toDate = document.getElementById('to_date');
+    const exportForm = document.getElementById('exportForm');
+
+    // 日付の相互制約を設定
+    fromDate.addEventListener('change', function() {
+        toDate.min = this.value;
+        if (toDate.value && toDate.value < this.value) {
+            toDate.value = this.value;
+        }
+    });
+
+    toDate.addEventListener('change', function() {
+        fromDate.max = this.value;
+        if (fromDate.value && fromDate.value > this.value) {
+            fromDate.value = this.value;
+        }
+    });
+
+    // フォーム送信時の検証
+    exportForm.addEventListener('submit', function(e) {
+        const formData = new FormData(this);
+        console.log('Form submission attempt');
+        for (let [key, value] of formData.entries()) {
+            console.log(`${key}: ${value}`);
+        }
+
+        if (!fromDate.value || !toDate.value) {
+            e.preventDefault();
+            alert('データ期間を指定してください。');
+            return false;
+        }
+
+        if (fromDate.value > toDate.value) {
+            e.preventDefault();
+            alert('開始日は終了日より前の日付を指定してください。');
+            return false;
+        }
+    });
+});
+</script>
+{% endblock %}
+
+

@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+
+{% block title %}プロンプト分析{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* フィルタオプションのスタイル */
+    .filters {
+        padding: 15px;
+        background-color: #f8f9fa;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background-color: white;
+    }
+
+    .filter-option-title {
+        margin-bottom: 15px;
+        color: #333;
+        font-size: 1.2em;
+    }
+
+    /* プロンプト分析結果のテーブルスタイル */
+    .prompt-analysis-table table,
+    .table-responsive table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        background-color: white;
+    }
+
+    .prompt-analysis-table th,
+    .prompt-analysis-table td,
+    .table-responsive th,
+    .table-responsive td {
+        border: 1px solid #dee2e6;
+        padding: 12px;
+        text-align: left;
+    }
+
+    .prompt-analysis-table th,
+    .table-responsive th {
+        background-color: #f8f9fa;
+        font-weight: bold;
+    }
+
+    .prompt-analysis-table tr:nth-child(even),
+    .table-responsive tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+
+    /* 難易度分析テーブルのスタイル */
+    .difficulty-table {
+        margin-top: 20px;
+    }
+
+    .difficulty-link {
+        color: #007bff;
+        text-decoration: none;
+    }
+
+    .difficulty-link:hover {
+        text-decoration: underline;
+    }
+
+    /* ボタンのスタイル */
+    .prompt-analysis-buttons {
+        margin-top: 20px;
+        display: flex;
+        flex-direction: column;  /* ボタンを縦に配置 */
+        gap: 10px;  /* ボタン間の間隔 */
+        width: 100%;  /* 幅を100%に */
+    }
+
+    .btn-primary {
+        width: 100%;  /* ボタンの幅を100%に */
+        color: white;
+        background-color: #007bff;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        text-align: center;
+        font-size: 14px;
+        transition: background-color 0.2s;
+    }
+
+    .btn-primary:hover {
+        background-color: #0056b3;
+    }
+
+    /* プロンプトと回答の表示スタイル */
+    .prompt-item {
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 15px;
+        margin-bottom: 15px;
+        background-color: white;
+    }
+
+    .prompt-item h5 {
+        color: #495057;
+        margin-top: 10px;
+        margin-bottom: 5px;
+    }
+
+    .prompt-item p {
+        margin-bottom: 10px;
+        padding: 8px;
+        background-color: #f8f9fa;
+        border-radius: 4px;
+    }
+
+    .prompt-item hr {
+        margin: 15px 0;
+        border: 0;
+        border-top: 1px solid #dee2e6;
+    }
+
+    /* アラートメッセージのスタイル */
+    .alert {
+        padding: 12px;
+        margin-bottom: 20px;
+        border: 1px solid transparent;
+        border-radius: 4px;
+    }
+
+    .alert-warning {
+        color: #856404;
+        background-color: #fff3cd;
+        border-color: #ffeeba;
+    }
+
+    .alert-info {
+        color: #0c5460;
+        background-color: #d1ecf1;
+        border-color: #bee5eb;
+    }
+
+    .alert-danger {
+        color: #721c24;
+        background-color: #f8d7da;
+        border-color: #f5c6cb;
+    }
+</style>
+{% endblock %}
+
+{% block filters %}
+<div class="filters">
+    <h3 class="filter-option-title">フィルタオプション</h3>
+    <form method="get" action="{{ url_for('prompt_analysis.prompt_analysis_page') }}">
+        {{ form.csrf_token }}
+        <div class="form-group">
+            <label for="admission_year">入学年度を選択</label>
+            <select class="form-control" id="admission_year" name="admission_year" aria-label="入学年度を選択">
+                {% for year in available_admission_years %}
+                    <option value="{{ year }}" {% if admission_year == year %}selected{% endif %}>{{ year }}年度</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="grade">学年を選択</label>
+            <select class="form-control" id="grade" name="grade" aria-label="学年を選択">
+                <option value="1" {% if grade == 1 %}selected{% endif %}>高校1年生</option>
+                <option value="2" {% if grade == 2 %}selected{% endif %}>高校2年生</option>
+                <option value="3" {% if grade == 3 %}selected{% endif %}>高校3年生</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="subject">科目を選択</label>
+            <select class="form-control" id="subject" name="subject" aria-label="科目を選択">
+                {% for subject in available_subjects %}
+                    <option value="{{ subject }}" {% if subject == selected_subject %}selected{% endif %}>{{ subject }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="class_id">クラスを選択</label>
+            <select class="form-control" id="class_id" name="class_id" aria-label="クラスを選択">
+                {% for cls in available_classes %}
+                    <option value="{{ cls }}" {% if class_id == cls %}selected{% endif %}>{{ cls }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="start_date">表示する期間 (from)</label>
+            <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}" aria-label="開始日を選択">
+        </div>
+        <div class="form-group">
+            <label for="end_date">表示する期間 (to)</label>
+            <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}" aria-label="終了日を選択">
+        </div>
+        <div class="form-group">
+            <label for="similarity_threshold">類似度閾値</label>
+            <select class="form-control" id="similarity_threshold" name="similarity_threshold" aria-label="類似度閾値を選択">
+                {% for threshold in range(1, 11) %}
+                    <option value="{{ threshold / 10 }}" {% if similarity_threshold == threshold / 10 %}selected{% endif %}>{{ threshold / 10 }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="num_rows">表示行数</label>
+            <select class="form-control" id="num_rows" name="num_rows" aria-label="表示行数を選択">
+                <option value="10" {% if num_rows == '10' or num_rows == 10 %}selected{% endif %}>10</option>
+                <option value="20" {% if num_rows == '20' or num_rows == 20 %}selected{% endif %}>20</option>
+                <option value="30" {% if num_rows == '30' or num_rows == 30 %}selected{% endif %}>30</option>
+                <option value="50" {% if num_rows == '50' or num_rows == 50 %}selected{% endif %}>50</option>
+                <option value="all" {% if num_rows == 'all' %}selected{% endif %}>全て</option>
+            </select>
+        </div>
+        <div class="prompt-analysis-buttons">
+            <button type="submit" name="analyze_prompts" class="btn btn-primary">プロンプト分析</button>
+            <button type="submit" name="analyze_difficulty" class="btn btn-primary">難易度分析</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="plot-container">
+    <h2>プロンプト分析</h2>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    {% if analysis_results %}
+        <div class="prompt-analysis-container">
+            <h3>プロンプト分析結果</h3>
+            <div class="prompt-analysis-table">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>プロンプトの代表例</th>
+                            <th>数</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for prompt, count in analysis_results.items() %}
+                            <tr>
+                                <td>{{ prompt }}</td>
+                                <td>{{ count }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endif %}
+
+    {% if difficulty_counts %}
+        <h3>難易度分析結果</h3>
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>難易度</th>
+                        <th>プロンプト数</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for difficulty, count in difficulty_counts.items() %}
+                        <tr>
+                            <td><a href="#" class="difficulty-link" data-difficulty="{{ difficulty }}">{{ difficulty }}</a></td>
+                            <td>{{ count }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div id="prompts-by-difficulty" style="display: none;">
+            <h4>選択された難易度のプロンプトと回答</h4>
+            <div id="prompts-list"></div>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+    document.querySelectorAll('.difficulty-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const difficulty = this.dataset.difficulty;
+            const grade = document.getElementById('grade').value;
+            const subject = document.getElementById('subject').value;
+            const classId = document.getElementById('class_id').value;
+            const admissionYear = document.getElementById('admission_year').value;
+            const startDate = document.getElementById('start_date').value;
+            const endDate = document.getElementById('end_date').value;
+    
+            fetch(`/data_analysis/prompt_analysis/get_prompts_by_difficulty?difficulty=${difficulty}&grade=${grade}&subject=${subject}&class_id=${classId}&admission_year=${admissionYear}&start_date=${startDate}&end_date=${endDate}&num_rows=${document.getElementById('num_rows').value}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const promptsList = document.getElementById('prompts-list');
+                    promptsList.innerHTML = '';
+                    
+                    if (data.error) {
+                        promptsList.innerHTML = `<div class="alert alert-warning">${data.error}</div>`;
+                    } else if (data.length === 0) {
+                        promptsList.innerHTML = `<div class="alert alert-info">該当するプロンプトが見つかりませんでした。</div>`;
+                    } else {
+                        data.forEach(item => {
+                            promptsList.innerHTML += `
+                                <div class="prompt-item">
+                                    <h5>プロンプト:</h5>
+                                    <p>${item.prompt}</p>
+                                    <h5>回答:</h5>
+                                    <p>${item.response}</p>
+                                    <h5>送信日時:</h5>
+                                    <p>${item.prompt_datetime}</p>
+                                    <hr>
+                                </div>
+                            `;
+                        });
+                    }
+    
+                    document.getElementById('prompts-by-difficulty').style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('There has been a problem with your fetch operation:', error);
+                    document.getElementById('prompts-list').innerHTML = `<div class="alert alert-danger">データの取得中にエラーが発生しました。</div>`;
+                    document.getElementById('prompts-by-difficulty').style.display = 'block';
+                });
+        });
+    });
+</script>
+{% endblock %}

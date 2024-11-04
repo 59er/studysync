@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<style>
+    .upload-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .upload-section {
+        background-color: #f8f9fa;
+        border-radius: 5px;
+        padding: 20px;
+        margin-bottom: 30px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .upload-section h3 {
+        color: #333;
+        margin-bottom: 20px;
+    }
+
+    .csv-format-guide {
+        background-color: #fff;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+        border: 1px solid #dee2e6;
+    }
+
+    .csv-format-guide h4 {
+        color: #495057;
+        margin-bottom: 10px;
+    }
+
+    .csv-format-guide ul {
+        padding-left: 20px;
+        margin-bottom: 15px;
+    }
+
+    .csv-format-guide li {
+        margin-bottom: 5px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 10px;
+        color: #495057;
+    }
+
+    .form-control-file {
+        display: block;
+        width: 100%;
+        padding: 10px;
+        background-color: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+    }
+
+    .btn-primary {
+        width: 100%;
+        padding: 10px;
+        background-color: #007bff;
+        border: none;
+        border-radius: 4px;
+        color: white;
+        cursor: pointer;
+    }
+
+    .btn-primary:hover {
+        background-color: #0056b3;
+    }
+
+    .alert {
+        padding: 12px;
+        margin-bottom: 20px;
+        border: 1px solid transparent;
+        border-radius: 4px;
+    }
+
+    .alert-success {
+        color: #155724;
+        background-color: #d4edda;
+        border-color: #c3e6cb;
+    }
+
+    .alert-error {
+        color: #721c24;
+        background-color: #f8d7da;
+        border-color: #f5c6cb;
+    }
+
+    a {
+        color: #007bff;
+        text-decoration: none;
+    }
+
+    a:hover {
+        text-decoration: underline;
+    }
+</style>
+{% endblock %}
+
+{% block title %}データアップロード{% endblock %}
+
+{% block content %}
+<div class="container upload-container">
+    <!-- フラッシュメッセージを最初に表示
+    <div class="flash-message-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="alert-container">
+              {% for category, message in messages %}
+                <div class="alert alert-{{ category }}" role="alert">
+                  {{ message }}
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+    </div> -->
+
+    <!-- ユーザー情報アップロードセクション -->
+    <div class="upload-section">
+        <h3>ユーザー情報のアップロード</h3>
+        <div class="csv-format-guide">
+            <h4>CSVファイルの形式</h4>
+            <p>以下の形式でCSV（UTF-8）ファイルを作成してください：</p>
+            <ul>
+                <li>last_name: 文字列</li>
+                <li>first_name: 文字列(省略可)</li>
+                <li>password: 文字列（新規ユーザ登録時は必須。既存ユーザでパスワード変更しない場合は空欄。）</li>
+                <li>email: 文字列（メールアドレスが無い場合は、example@example.comなどを入力）</li>
+                <li>grade_id: 数値</li>
+                <li>class_id: 文字列</li>
+                <li>is_staff: 'TRUE' または 'FALSE'（文字列）。学生はFALSE or 0。管理機能利用者はTRUE or 1。</li>
+                <li>user_id: 文字列（ユニークID）</li>
+                <li>admission_year: 入学年度（数値）</li>
+            </ul>
+            <p><strong>注意：</strong> 登録済ユーザのデータを更新する場合で、パスワードの変更が不要の場合はパスワード欄は空欄でアップロードしてください。パスワードを入力したまま、アップロードすると同一パスワードでも都度ハッシュ化されるため、パスワードデータが変更となり、ログインできなくなります（アップロード操作時にメッセージで警告されます）。</p>       
+        </div>
+        <form method="post" enctype="multipart/form-data">
+            {{ user_form.csrf_token }}
+            <div class="form-group">
+                <label for="user_file">
+                    ユーザー情報のCSVファイルをアップロード
+                    <a href="{{ url_for('static', filename='download/userdata_upload_template.csv') }}" download="userdata_upload_template.csv">
+                        （ユーザ情報ファイルテンプレートのダウンロードはこちら。）
+                    </a>
+                </label>
+                {{ user_form.user_file(class="form-control-file", id="user_file", required=true) }}
+            </div>
+            <button type="submit" class="btn btn-primary">アップロード</button>
+        </form>
+    </div>
+    
+    <!-- NGワードアップロードセクション -->
+    <div class="upload-section">
+        <h3>NGワードのアップロード</h3>
+        <div class="csv-format-guide">
+            <h4>CSVファイルの形式</h4>
+            <p>NGワードのCSVファイルは以下の形式で作成してください：</p>
+            <ul>
+                <li>1行に1つのNGワードを記入</li>
+                <li>ファイルはUTF-8エンコーディングで保存</li>
+                <li>空行は無視されます</li>
+            </ul>
+            <p><strong>注意：</strong> アップロードすると既存のNGワードは全て削除され、新しいリストで置き換えられます。この操作は元に戻せません。</p>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+            {{ ng_word_form.csrf_token }}
+            <div class="form-group">
+                <label for="ng_word_file">
+                    NGワードのCSVファイルをアップロード
+                    <a href="{{ url_for('static', filename='download/ng_words_upload_template.csv') }}" download="ng_words_upload_template.csv">
+                        （NGワードファイルテンプレートのダウンロードはこちら。）
+                    </a>
+                </label>
+                {{ ng_word_form.ng_word_file(class="form-control-file", id="ng_word_file", required=true) }}
+            </div>
+            <button type="submit" class="btn btn-primary">アップロード</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

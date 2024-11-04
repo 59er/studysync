@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}400 Bad Request{% endblock %}
+
+{% block content %}
+<div class="error-container">
+    <h1>400 Bad Request</h1>
+    <p>申し訳ありませんが、リクエストを処理できませんでした。</p>
+    <p>正しい情報を入力しているか確認し、再度お試しください。</p>
+    <a href="{{ url_for('login.login') }}">ログインページに戻る</a>
+</div>
+{% endblock %}

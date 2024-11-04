@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{% block title %}ラーニングアシスタントAI{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <!-- {% if session.get('is_staff') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    {% endif %}
+    {% block head %}{% endblock %} -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML"></script> -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <script type="text/x-mathjax-config">
+        MathJax.Hub.Config({
+            tex2jax: {
+                inlineMath: [['$','$'], ['\\(','\\)']],
+                displayMath: [['$$','$$'], ['\\[','\\]']],
+                processEscapes: true
+            }
+        });
+    </script>
+    <style>
+        .qa-history-sidebar h4 {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #toggle-qa-history {
+            font-size: 0.8em;
+            padding: 2px 5px;
+        }
+
+        .btn-icon {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            color: #007bff;  /* 青色 */
+        }
+        .btn-icon:focus {
+            outline: none;
+}
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: static;
+                width: 100%;
+                height: auto;
+            }
+            .main-content {
+                margin-left: 0;
+            }
+            .qa-history-sidebar {
+                margin-bottom: 20px;
+            }
+            
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+    <script>
+        $(document).ready(function() {
+            console.log('Debug: Script loaded');
+        
+            // var selectedSubject = {% if session['selected_subject'] is defined and session['selected_subject'] is not none %}{{ session['selected_subject']|tojson }}{% else %}null{% endif %};
+            var selectedSubject = {{ session.get('selected_subject', 'null')|tojson|safe }};
+            console.log('Debug: selectedSubject =', selectedSubject);
+            var currentQaId = null;
+            var currentConversationHistory = [];
+            var isSubmitting = false;
+            let ngWords = [];
+            loadNgWords(); // ページロード時にNGワードを取得
+
+            console.log("Debug: 現在選択されている科目:", selectedSubject);
+        
+            // CSRFトークンをAjaxリクエストに設定
+            $.ajaxSetup({
+                beforeSend: function(xhr, settings) {
+                    if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                        xhr.setRequestHeader("X-CSRFToken", $('meta[name="csrf-token"]').attr('content'));
+                    }
+                }
+            });
+
+            // サーバーからNGワードを取得する関数
+            async function loadNgWords() {
+                try {
+                    const response = await fetch('/chatbot/get_ng_words');
+                    if (!response.ok) throw new Error('NGワードの取得に失敗しました。');
+                    const data = await response.json();
+                    ngWords = data.ng_words || [];
+                    console.log('NGワード取得成功:', ngWords);
+                } catch (error) {
+                    console.error('Error loading NG words:', error);
+                    displayError('NGワードの取得に失敗しました。');
+                }
+            }
+
+                // 科目選択後の処理
+                if (selectedSubject) {
+                    console.log("Debug: New subject selected, updating QA history");
+                    updateQAHistory();
+                }
+
+        
+            function initializeTextareas() {
+                $('textarea.auto-resize').each(function() {
+                    autoResizeTextarea(this);
+                }).on('input', function() {
+                    autoResizeTextarea(this);
+                });
+            }
+        
+            function autoResizeTextarea(textarea) {
+                textarea.style.height = '34px';
+                textarea.style.height = (textarea.scrollHeight) + 'px';
+            }
+        
+            initializeTextareas();
+        
+            function displayError(message) {
+                $('#error-message').text(message).show();
+                setTimeout(function() {
+                    $('#error-message').hide();
+                }, 10000);
+            }
+        
+            function scrollToBottom() {
+                var responseArea = document.getElementById('response-area');
+                if (responseArea) {
+                    setTimeout(() => {
+                        responseArea.scrollTop = responseArea.scrollHeight;
+                    }, 50);  // 少し遅延させてスクロール
+                }
+            }
+        
+            // function rerenderMathJax() {
+            //     if (window.MathJax) {
+            //         MathJax.Hub.Queue(["Typeset", MathJax.Hub, document.getElementById('response-area')]);
+            //     }
+            // }
+
+            function rerenderMathJax(element) {
+                if (window.MathJax) {
+                    MathJax.typesetPromise([element]).catch(function (err) {
+                        console.error('MathJax typeset failed: ' + err.message);
+                    });
+                }
+            }
+
+
+            function finalizeMathRendering() {
+            console.log("Finalizing MathJax rendering...");
+            setTimeout(() => {
+                rerenderMathJax();
+            }, 100);  // 少し遅延を加えて最終レンダリングを実行
+        }
+
+        
+            // ページ読み込み後、MathJaxを再描画
+            $(window).on('load', function() {
+                rerenderMathJax();
+            });
+        
+            function updateArrowIcon() {
+                var qaList = $('#qa-history-list');
+                var $icon = $('#toggle-qa-history').find('i');
+                if (qaList.is(':visible')) {
+                    $icon.removeClass('fa-chevron-down').addClass('fa-chevron-up');
+                } else {
+                    $icon.removeClass('fa-chevron-up').addClass('fa-chevron-down');
+                }
+            }
+        
+            function updateQAHistory() {
+                console.log("Debug: updateQAHistory called");
+                console.log("Debug: Selected Subject:", selectedSubject);
+                console.log("Debug: Is Staff:", {{ 'true' if session.get('is_staff') == 1 else 'false' }});
+                if (!selectedSubject) {
+                    console.warn("Warning: 科目が未定義のため、Q&A履歴を取得できません。");
+                    $('#qa-history-list').html('<li>科目が選択されていません。</li>');
+                    return;
+                }
+        
+                $.ajax({
+                    url: '{{ url_for("chatbot.get_qa_history") }}',
+                    type: 'GET',
+                    data: { subject: selectedSubject },
+                    dataType: 'json',
+                    success: function(data) {
+                        console.log("Debug: 取得したQ&A履歴:", data);
+                        var qaList = $('#qa-history-list');
+                        qaList.empty();
+        
+                        if (!Array.isArray(data) || data.length === 0) {
+                            qaList.append('<li>表示する履歴がありません。</li>');
+                        } else {
+                            data.forEach(function(qa) {
+                                qaList.append(`
+                                    <li>
+                                        <a href="#" class="qa-history-item" data-qa-id="${qa.qa_id}">
+                                            ${escapeHtml(qa.latest_prompt)}${qa.datetime ? ` (${escapeHtml(qa.datetime)})` : ''}
+                                        </a>
+                                    </li>
+                                `);
+                            });
+                        }
+                        updateArrowIcon();
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        console.error("Error loading QA history:", textStatus, errorThrown);
+                        console.error("Response:", jqXHR.responseText);
+                        $('#qa-history-list').html('<li>履歴の読み込みに失敗しました。</li>');
+                        updateArrowIcon();
+                    }
+                });
+            }
+        
+            // ページ読み込み時にQ&A履歴を表示
+            updateQAHistory();
+        
+            // Q&A 履歴項目をクリックした際の処理
+            $(document).on('click', '.qa-history-item', function(e) {
+                e.preventDefault();
+                var qaId = $(this).data('qa-id');
+                if (qaId && qaId !== 'unknown_qa') {
+                    $.ajax({
+                        url: '{{ url_for("chatbot.resume_conversation") }}',
+                        type: 'POST',
+                        data: JSON.stringify({ qa_id: qaId }),
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        success: function(data) {
+                            if (data.error) {
+                                console.error("Error:", data.error);
+                                alert(data.error);
+                            } else {
+                                var conversationHtml = '';
+                                currentConversationHistory = data.conversation;
+                                currentConversationHistory.forEach(function(entry) {
+                                    // 回答のフォーマット処理
+                                    const escapedPrompt = escapeHtml(entry.prompt);
+                                    const formattedResponse = formatFinalResponse(entry.response);
+                                    conversationHtml += `
+                                        <div class="chat-entry">
+                                            <p><strong>質問:</strong> ${entry.prompt}</p>
+                                            <p><strong>難易度:</strong> ${entry.difficulty}</p>
+                                            <p><strong>回答:</strong></p>
+                                            <div class="response">${formattedResponse}</div>
+                                            <small>${entry.prompt_datetime}</small>
+                                        </div>
+                                    `;
+                                });
+                                $('#response-area').html(conversationHtml);
+                                currentQaId = data.qa_id;
+
+                                // MathJaxの再レンダリングをここで実行
+                                rerenderMathJax(document.getElementById('response-area'));
+
+                                // 会話履歴を表示した後、画面を最下部にスクロール
+                                scrollToBottom();
+                            }
+                        },
+                        error: function(jqXHR, textStatus, errorThrown) {
+                            console.error("Error resuming conversation:", textStatus, errorThrown);
+                            alert('会話の再開中にエラーが発生しました。');
+                        }
+                    });
+                }
+            });
+
+
+            function escapeHtml(unsafe) {
+                return unsafe
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+            }
+
+        
+            // チャットフォームの送信イベント
+            var currentQaId = null;
+            var currentConversationHistory = [];
+
+            $('#chat-form').submit(async function (event) {
+                event.preventDefault(); // デフォルトの送信を無効化
+
+                if (isSubmitting) return; // 多重送信を防止
+                isSubmitting = true;
+
+                const prompt = $('textarea[name="prompt"]').val().trim(); // プロンプトを取得
+
+                // NGワードが含まれているかチェック
+                if (containsNgWord(prompt)) {
+                    displayError('NGワードが含まれています。入力を修正してください。');
+                    isSubmitting = false; // 送信状態を解除
+                    return; // サーバーへの送信をブロック
+                }
+
+                // 入力をエスケープしてから表示
+                const escapedPrompt = escapeHtml(prompt);
+
+                $('#no-history').remove();
+
+                var formData = new FormData(this);
+                var jsonData = {};
+                formData.forEach((value, key) => { jsonData[key] = value });
+
+                // qa_id と conversation_history を追加
+                jsonData.qa_id = currentQaId;
+                jsonData.conversation_history = currentConversationHistory;
+
+                // ローディング表示とスピナーの追加
+                var spinner = `
+                    <div id="loading-message" style="color: #666; display: flex; align-items: center;">
+                        回答を生成中です... <div class="spinner" style="margin-left: 10px;"></div>
+                    </div>`;
+                $('#response-area').append(spinner);
+
+                // スピナーが確実に表示されるように調整
+                const loadingMessage = document.getElementById('loading-message');
+                if (loadingMessage) {
+                    setTimeout(() => {
+                        loadingMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 100);
+                }
+
+                try {
+                    const response = await fetch('{{ url_for("chatbot.generate_response") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(jsonData)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const timestamp = Date.now();
+                    const currentStreamingResponseId = `streaming-response-${timestamp}`;
+
+                    const escapedPrompt = escapeHtml(formData.get('prompt'));
+                    const escapedDate = escapeHtml(new Date().toLocaleString());
+
+                    const newResponseHtml = `
+                        <div class="chat-entry">
+                            <p><strong>質問:</strong> ${escapedPrompt}</p>
+                            <p><strong>難易度:</strong> <span id="difficulty-placeholder-${timestamp}">評価中...</span></p>
+                            <p><strong>回答:</strong></p>
+                            <div class="response" id="${currentStreamingResponseId}"></div>
+                            <small>${escapedDate}</small>
+                        </div>
+                    `;
+
+
+                    $('#loading-message').remove();
+                    $('#response-area').append(newResponseHtml);
+                    const responseElement = document.getElementById(currentStreamingResponseId);
+                    scrollToBottom(responseElement, true);
+
+                    let accumulatedResponse = '';
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+
+                        const chunk = decoder.decode(value);
+                        const lines = chunk.split('\n');
+
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                try {
+                                    const jsonData = JSON.parse(line.slice(6).trim());
+                                    if (jsonData.content && !jsonData.end) {
+                                        accumulatedResponse += jsonData.content;
+                                        const formattedResponse = formatFinalResponse(accumulatedResponse);
+                                        $(`#${currentStreamingResponseId}`).html(formattedResponse);
+                                        scrollToBottom(responseElement, true);
+                                    }
+                                    if (jsonData.end) {
+                                        $(`#${currentStreamingResponseId}`).html(formatFinalResponse(jsonData.content));
+                                        $(`#difficulty-placeholder-${timestamp}`).text(jsonData.difficulty || '評価なし');
+                                        currentQaId = jsonData.qa_id;
+                                        currentConversationHistory.push({
+                                            prompt: jsonData.prompt,
+                                            response: jsonData.content,
+                                            difficulty: jsonData.difficulty
+                                        });
+                                        rerenderMathJax(responseElement);
+                                        updateQAHistory();
+                                        scrollToBottom(responseElement, true);
+                                    }
+                                } catch (error) {
+                                    console.error("Error parsing JSON:", error);
+                                }
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error:", error);
+                    $(`#${currentStreamingResponseId}`).html('<p class="error">回答の生成中にエラーが発生しました。</p>');
+                } finally {
+                    isSubmitting = false;
+                    const chatInput = this.querySelector('textarea.chat-input');
+                    $('#chat-form')[0].reset();
+                    chatInput.style.height = '';  // テキストエリアの高さを初期値にリセット
+                    $('#loading-message').remove();
+                }
+
+                finalizeMathRendering();
+            });
+
+            // NGワードチェック関数
+            function containsNgWord(text) {
+                return ngWords.some(word => text.toLowerCase().includes(word));
+            }
+
+            // エラーメッセージを表示する関数
+            function displayError(message) {
+                $('#error-message').text(message).show();
+                setTimeout(() => {
+                    $('#error-message').hide();
+                }, 10000);
+            }
+
+
+
+            function formatStreamingResponse(text) {
+                // 数式部分を検出してプレースホルダーに置換
+                const mathExpressions = [];
+                const mathRegex = /(\$\$[\s\S]+?\$\$|\$[^$]+\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\))/g;
+                let tempText = text.replace(mathRegex, function(match) {
+                    mathExpressions.push(match);
+                    return `__MATH_EXPR_${mathExpressions.length - 1}__`;
+                });
+
+                // テキストのフォーマット処理（数式部分を除く）
+                let lines = tempText.split('\n');
+                let formattedLines = [];
+                let isListStarted = false;
+                let isAfterExample = false;
+                let inSubheadingBlock = false;
+
+                for (let line of lines) {
+                    if (!line.trim()) continue;
+
+                    // 大項目の処理（###または数字.で始まる行）
+                    if (line.trim().match(/^(?:###|[1-9]\.)\s+.+/)) {
+                        if (isListStarted) {
+                            formattedLines.push('</ul>');
+                            isListStarted = false;
+                        }
+                        if (inSubheadingBlock) {
+                            formattedLines.push('</div></div>');
+                            inSubheadingBlock = false;
+                        }
+                        const title = line.trim()
+                            .replace(/^###\s*/, '')
+                            .replace(/^(\d+\.\s+)/, '$1')
+                            .replace(/\*\*(.*?)\*\*/g, '$1');
+                        line = `<h4 class="chat-heading">${title}</h4>`;
+                        isAfterExample = false;
+                    }
+                    // **xxx**: パターンの見出し的項目の処理
+                    else if (line.trim().match(/^[-•]?\s*\*\*[^*]+\*\*[:：]/)) {
+                        if (isListStarted) {
+                            formattedLines.push('</ul>');
+                            isListStarted = false;
+                        }
+                        if (inSubheadingBlock) {
+                            formattedLines.push('</div></div>');
+                            inSubheadingBlock = false;
+                        }
+                        const content = line.trim().replace(/^[-•]\s*/, '');
+                        line = content.replace(/\*\*(.*?)\*\*[:：]/, '<strong>$1</strong>：');
+                        line = `<div class="subheading-block"><div class="subheading">${line}</div><div class="content-wrapper">`;
+                        inSubheadingBlock = true;
+                        isAfterExample = false;
+                    }
+                    // 例: の処理（"**例**:" のパターンに限定）
+                    else if (line.trim().match(/^[-•]?\s*\*\*例\*\*[:：]/)) {
+                        if (isListStarted) {
+                            formattedLines.push('</ul>');
+                            isListStarted = false;
+                        }
+                        if (inSubheadingBlock) {
+                            formattedLines.push('</div></div>');
+                            inSubheadingBlock = false;
+                        }
+
+                        const content = line.trim().replace(/^[-•]\s*/, '');
+
+                        // "例："をインデントして表示
+                        line = content.replace(/\*\*(.*?)\*\*[:：]/, '<span class="example-label" style="margin-left: 1.5em;">$1：</span>');
+
+                        // インデント付きのサブヘディングブロック生成
+                        line = `<div class="subheading-block"><div class="content-wrapper">${line}</div></div>`;
+                        inSubheadingBlock = true;
+                        isAfterExample = true;
+                    }
+                    // 例文や説明文の処理
+                    else if (line.trim().startsWith('-') || line.trim().startsWith('•')) {
+                        let content = line.trim().substring(1).trim();
+                        content = content
+                            .replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, '<em>$1</em>')
+                            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+                        if (isAfterExample) {
+                            // 例文のインデント幅を調整（1emに変更）
+                            line = `<div class="example-text" style="margin-left: 1em;">- ${content}</div>`;
+                        } else {
+                            // 説明文のインデント幅の調整
+                            if (content.match(/^[^:：]+[:：]/)) {  // 「:」か「：」で終わる文字列を検出
+                                line = `<div class="description-text" style="margin-left: 1em;">${content}</div>`;
+                            } else {
+                                line = `<div class="description-text" style="margin-left: 1.5em;">${content}</div>`;
+                            }
+                        }
+                    }
+                    // その他の行の処理
+                    else {
+                        if (isListStarted) {
+                            formattedLines.push('</ul>');
+                            isListStarted = false;
+                        }
+                        if (inSubheadingBlock && !line.trim().startsWith('<div')) {
+                            formattedLines.push('</div></div>');
+                            inSubheadingBlock = false;
+                        }
+                        // 数式内のバックスラッシュや特殊文字を壊さないように注意
+                        line = line
+                            .replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, '<em>$1</em>')
+                            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                        line = `<p>${line.trim()}</p>`;
+                        isAfterExample = false;
+                    }
+
+                    formattedLines.push(line);
+                }
+
+                // 閉じタグの処理
+                if (isListStarted) {
+                    formattedLines.push('</ul>');
+                }
+                if (inSubheadingBlock) {
+                    formattedLines.push('</div></div>');
+                }
+
+                // プレースホルダーを元の数式に戻す
+                let finalText = formattedLines.join('\n').replace(/__MATH_EXPR_(\d+)__/g, function(match, index) {
+                    return mathExpressions[parseInt(index)];
+                });
+
+                return finalText;
+            }
+
+            function formatFinalResponse(text) {
+                // `formatStreamingResponse`をそのまま呼び出す
+                return formatStreamingResponse(text);
+            }
+
+
+
+            // スクロール関数の定義
+            function scrollToBottom(element = null, smooth = false) {
+                setTimeout(() => {
+                    const targetElement = element || document.querySelector('#response-area');
+                    const scrollOptions = {
+                        behavior: smooth ? 'smooth' : 'auto',
+                        block: 'end',
+                        inline: 'nearest'
+                    };
+                    targetElement.scrollIntoView(scrollOptions);
+                }, 10);
+            }
+
+
+            function updateSidebar() {
+                $.ajax({
+                    url: '/chatbot/get_qa_history',
+                    type: 'GET',
+                    data: { subject: currentSubject },
+                    success: function(data) {
+                        $('#qa-history').empty();
+                        // 最新のQAが上に来るようにソート
+                        data.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                        data.forEach(function(qa) {
+                            $('#qa-history').append(`
+                                <div class="qa-item" data-qa-id="${escapeHtml(qa.id)}">
+                                    <strong>${escapeHtml(qa.prompt)}</strong>
+                                    <br>
+                                    <small>難易度: ${escapeHtml(qa.difficulty)}</small>
+                                </div>
+                            `);
+                        });
+                        // サイドバーを最上部にスクロール
+                        $('#qa-history').scrollTop(0);
+                    },
+                    error: function(error) {
+                        console.error("Error updating sidebar:", error);
+                    }
+                });
+            }
+
+                    
+            // 画像生成フォームの送信イベント
+            var isImageSubmitting = false;
+
+            $('#image-form').submit(function(event) {
+                event.preventDefault();
+                if (isImageSubmitting) {
+                    console.log("Debug: Image form submission in progress, ignoring this submit");
+                    return;
+                }
+
+                const imagePrompt = $('#image_prompt').val().trim(); // 画像生成プロンプトを取得
+
+                // NGワードが含まれているかチェック
+                if (containsNgWord(imagePrompt)) {
+                    displayError('NGワードが含まれています。入力を修正してください。');
+                    return; // サーバーへの送信をブロック
+                }
+
+                // // 「まだチャット履歴がありません。」というメッセージを削除
+                // $('#no-history').remove();
+
+                console.log("Debug: Image form submitted");
+                isImageSubmitting = true;
+
+                var formData = new FormData(this);
+                $('#image-result').html('<div id="image-loading-message" style="color: #666; display: flex; align-items: center;">画像を生成中です... <div class="spinner" style="margin-left: 10px;"></div></div>').show();
+
+                $.ajax({
+                    url: '{{ url_for("chatbot.generate_image") }}',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    dataType: 'json',
+                    success: function(data) {
+                        console.log("Debug: Image response received", data);
+                        if (data.error) {
+                            displayError('画像生成中にエラーが発生しました。');
+                            $('#image-result').hide();
+                        } else {
+                            const escapedImageUrl = escapeHtml(data.image_url);
+                            $('#image-result').html(`
+                                <h4>生成された画像:</h4>
+                                <img src="${escapedImageUrl}" alt="生成された画像" style="max-width: 100%; height: auto; max-height: 400px;">
+                            `);
+                        }
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        console.error("Debug: Image error", textStatus, errorThrown);
+                        var errorMessage = '画像生成中にエラーが発生しました。';
+                        if (jqXHR.responseJSON && jqXHR.responseJSON.error) {
+                            errorMessage += ' ' + jqXHR.responseJSON.error;
+                        }
+                        displayError('画像生成中にエラーが発生しました。');
+                        $('#image-result').hide();
+                    },
+                    complete: function() {
+                        isImageSubmitting = false;
+                        $('#image-form')[0].reset();
+                        initializeTextareas();
+                        $('#image-loading-message').remove(); // スピナーの完全削除
+                    }
+                });
+            });
+                    
+            // 表示/非表示ボタンの処理
+            $('#toggle-qa-history').click(function() {
+                var qaList = $('#qa-history-list');
+                if (qaList.is(':visible')) {
+                    qaList.hide();
+                } else {
+                    if (qaList.children().length === 0) {
+                        updateQAHistory();
+                    }
+                    qaList.show();
+                }
+                updateArrowIcon();
+            });
+        
+            // New Chatボタンのクリックイベント
+            $('#new-chat-btn').click(function() {
+                currentQaId = null;
+                currentConversationHistory = [];
+                $('#response-area').empty();
+                $('#response-area').append('<p id="no-history">まだチャット履歴がありません。</p>');
+                console.log("Debug: New Chat button clicked, chat history cleared");
+                updateQAHistory();  // 履歴を更新
+            });
+        
+            // 初期化時にスクロール
+            scrollToBottom();
+        });
+
+
+            // セッションタイムアウトをチェックする関数
+
+            let sessionTimeout;
+
+            function redirectToLogin() {
+                // セッションストレージもクリア
+                sessionStorage.clear();
+                // ログイン画面へ強制リダイレクト
+                window.location.href = "{{ url_for('login.login') }}";
+            }
+
+            function resetSessionTimer() {
+                clearTimeout(sessionTimeout);
+                sessionTimeout = setTimeout(() => {
+                    redirectToLogin();
+                }, 30 * 60 * 1000); // 30分
+            }
+
+            function checkSession() {
+                fetch("{{ url_for('check_session') }}", {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin'
+                })
+                .then(async response => {
+                    if (!response.ok) {
+                        const data = await response.json();
+                        console.error('Session check failed:', data);
+                        redirectToLogin();
+                        return;
+                    }
+                    resetSessionTimer();
+                })
+                .catch(error => {
+                    console.error('Session check error:', error);
+                    redirectToLogin();
+                });
+            }
+
+            // ユーザーのアクティビティを監視
+            const events = ['mousemove', 'keypress', 'click', 'scroll'];
+            events.forEach(event => {
+                document.addEventListener(event, resetSessionTimer);
+            });
+
+            // 初期設定
+            document.addEventListener('DOMContentLoaded', function() {
+                resetSessionTimer();
+                setInterval(checkSession, 5 * 60 * 1000); // 5分ごとにチェック
+                
+                // ページが表示される時にもチェック
+                checkSession();
+            });
+
+            // ページがアクティブになった時にもチェック
+            document.addEventListener('visibilitychange', function() {
+                if (!document.hidden) {
+                    checkSession();
+                }
+            });
+
+        </script>
+    {% block extra_js %}{% endblock %}
+
+    
+</head>
+<body>
+    <div class="wrapper">
+        <div class="sidebar">
+            <ul>
+                <li>
+                    <input type="radio" name="menu" id="home-menu" {% if request.endpoint and (request.endpoint.startswith('student_main') or request.endpoint.startswith('teacher_main')) %}checked{% endif %}>
+                    <label for="home-menu">
+                        <a href="{{ url_for('teacher_main.subject_selection' if session.get('is_staff') == 1 else 'student_main.subject_selection') }}" class="menu-item">ホーム</a>
+                    </label>
+                </li>
+
+                <li>
+                    <input type="radio" name="menu" id="password-menu" {% if request.endpoint == 'common.change_password' %}checked{% endif %}>
+                    <label for="password-menu">
+                        <a href="{{ url_for('common.change_password') }}" class="menu-item">パスワード変更</a>
+                    </label>
+                </li>
+
+                {% if session.get('is_staff') %}
+                <li>
+                    <input type="radio" id="admin_menu" name="menu" value="admin_menu" {% if request.endpoint and (request.endpoint.startswith('prompt_trends') or request.endpoint.startswith('student_prompt_counts')) %}checked{% endif %}>
+                    <label for="admin_menu" class="menu-item">管理者メニュー</label>
+                </li>
+                
+                <!-- 管理者向けプルダウンメニュー -->
+                <li>
+                    <select id="admin-menu-select" name="admin-menu" class="admin-menu" aria-label="管理者メニュー" onchange="navigateToPage(this)">
+                        <option value="" disabled {% if not request.endpoint or (not request.endpoint.startswith('prompt_trends') and not request.endpoint.startswith('student_prompt_counts') and not request.endpoint.startswith('prompt_analysis') and not request.endpoint.startswith('subject_management') and not request.endpoint.startswith('prompt_bp') and not request.endpoint.startswith('register') and not request.endpoint.startswith('export_bp')) %}selected{% endif %}>管理者メニューを選択</option>
+                        <option value="{{ url_for('prompt_trends.prompt_trends_page') }}" {% if request.endpoint and request.endpoint.startswith('prompt_trends') %}selected{% endif %}>プロンプト数推移</option>
+                        <option value="{{ url_for('student_prompt_counts.student_prompt_counts_page') }}" {% if request.endpoint and request.endpoint.startswith('student_prompt_counts') %}selected{% endif %}>学生別プロンプト数</option>
+                        <option value="{{ url_for('prompt_analysis.prompt_analysis_page') }}" {% if request.endpoint and request.endpoint.startswith('prompt_analysis') %}selected{% endif %}>プロンプト分析</option>
+                        <option value="{{ url_for('subject_management.subject_management_page') }}" {% if request.endpoint and request.endpoint.startswith('subject_management') %}selected{% endif %}>教科管理</option>
+                        <option value="{{ url_for('prompt_bp.update_prompt') }}" {% if request.endpoint and request.endpoint.startswith('prompt_bp') %}selected{% endif %}>システムプロンプト編集</option>
+                        <option value="{{ url_for('register.register_page') }}" {% if request.endpoint and request.endpoint.startswith('register') %}selected{% endif %}>データアップロード</option>
+                        <option value="{{ url_for('export_bp.export_logs') }}" {% if request.endpoint and request.endpoint.startswith('export_bp') %}selected{% endif %}>ログデータダウンロード</option>
+                    </select>
+                </li>
+                
+                {% if request.endpoint and (request.endpoint.startswith('prompt_trends') or request.endpoint.startswith('student_prompt_counts') or request.endpoint.startswith('prompt_analysis')) %}
+                    {% block filters %}{% endblock %}
+                {% endif %}
+                {% endif %}
+            </ul>
+
+            {% if 'selected_subject' in session %}
+            {% if session.get('is_staff') == 1 and request.endpoint == 'teacher_main.teacher_main' %}
+                <div class="qa-history-sidebar">
+                    <h4>
+                        過去のQ&A ({{ session['selected_subject'] }})
+                        <button id="toggle-qa-history" class="btn-icon">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                    </h4>
+                    <ul id="qa-history-list" style="display: none;">
+                        <!-- JavaScript で動的に生成される要素 -->
+                    </ul>
+                </div>
+            {% elif not session.get('is_staff') and request.endpoint == 'student_main.student_main' %}
+                <div class="qa-history-sidebar">
+                    <h4>
+                        過去のQ&A ({{ session['selected_subject'] }})
+                        <button id="toggle-qa-history" class="btn-icon">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                    </h4>
+                    <ul id="qa-history-list" style="display: none;">
+                        <!-- JavaScript で動的に生成される要素 -->
+                    </ul>
+                </div>
+            {% endif %}
+        {% endif %}
+        </div>
+
+        <div class="main-content">
+            <header class="top-header">
+                <h1 class="page-title">ラーニングアシスタントAI</h1>
+                {% if 'logged_in' in session %}
+                <div class="user-controls">
+                    <span class="username">{{ session['last_name'] }} さん</span>
+                    <form method="post" action="{{ url_for('logout.logout') }}" class="logout-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="logout-btn">ログアウト</button>
+                    </form>
+                </div>
+                {% endif %}
+            </header>
+            <div class="content-wrapper">
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function navigateToPage(selectElement) {
+        if (selectElement.value) {
+            window.location.href = selectElement.value;
+        }
+    }
+    </script>
+</body>
+</html>

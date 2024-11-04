@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}科目の選択{% endblock %}
+
+{% block content %}
+<div class="subject-selection">
+    <h2>科目の選択</h2>
+    {% if session.get('is_staff') == 1 %}
+        <form method="post" action="{{ url_for('subject_management.subject_selection') }}" class="subject-form">
+    {% else %}
+        <form method="post" action="{{ url_for('student_main.subject_selection') }}" class="subject-form">
+    {% endif %}
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="select-wrapper">
+        <select name="subject" required>
+            <option value="" disabled selected>科目を選択してください</option>
+            {% for subject in subjects %}
+                <option value="{{ subject }}">{{ subject }}</option>
+            {% else %}
+                <option value="">科目が見つかりません</option>
+            {% endfor %}
+        </select>
+
+        </div>
+        <button type="submit" class="btn-small">科目を決定</button>
+    </form>
+</div>
+{% endblock %}
+
+

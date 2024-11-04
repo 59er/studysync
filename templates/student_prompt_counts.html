@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% block title %}学生別プロンプト数{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* フィルタオプションのスタイル */
+    .filters {
+        padding: 15px;
+        background-color: #f8f9fa;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
+    
+    .form-group {
+        margin-bottom: 15px;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background-color: white;
+    }
+    
+    /* プロンプト表示テーブルのスタイル */
+    .table-responsive {
+        margin-top: 20px;
+    }
+    
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1rem;
+        background-color: transparent;
+    }
+    
+    .table th,
+    .table td {
+        padding: 12px;
+        vertical-align: top;
+        border: 1px solid #dee2e6;
+    }
+    
+    .table thead th {
+        vertical-align: bottom;
+        background-color: #f8f9fa;
+        border-bottom: 2px solid #dee2e6;
+    }
+    
+    /* 学生選択フィールドのスタイル */
+    .student-select {
+        width: 100%;
+        max-width: 500px;
+        padding: 10px;
+        margin: 20px 0;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background-color: white;
+    }
+    
+    /* グラフコンテナのスタイル */
+    .plot-container {
+        padding: 20px;
+        background-color: white;
+    }
+    
+    /* ボタンのスタイル */
+    .btn-primary {
+        width: 100%;  /* ボタンの幅を100%に設定 */
+        color: white;
+        background-color: #007bff;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        text-align: center;
+        font-size: 14px;
+        transition: background-color 0.2s;
+        margin-top: 10px;  /* 上部に少し余白を追加 */
+    }
+
+    .btn-primary:hover {
+        background-color: #0056b3;
+    }
+
+    /* ボタンコンテナのスタイル */
+    .button-container {
+        width: 100%;
+        margin-top: 15px;
+    }
+</style>
+{% endblock %}
+
+{% block filters %}
+<div class="filters">
+    <h3>フィルタオプション</h3>
+    <form method="get" action="{{ url_for('student_prompt_counts.student_prompt_counts_page') }}" class="filter-form">
+        <!-- 入学年度フィルタ -->
+        <div class="form-group">
+            <label for="admission_year_filter">入学年度を選択</label>
+            <select class="form-control" id="admission_year_filter" name="admission_year_filter">
+                {% for year in admission_years %}
+                    <option value="{{ year }}" {% if admission_year_filter == year %}selected{% endif %}>{{ year }}年度</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="grade_filter">学年を選択</label>
+            <select class="form-control" id="grade_filter" name="grade_filter">
+                <option value="高校1年" {% if grade_filter == '高校1年' %}selected{% endif %}>高校1年生</option>
+                <option value="高校2年" {% if grade_filter == '高校2年' %}selected{% endif %}>高校2年生</option>
+                <option value="高校3年" {% if grade_filter == '高校3年' %}selected{% endif %}>高校3年生</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="subject_filter">科目を選択</label>
+            <select class="form-control" id="subject_filter" name="subject_filter">
+                {% for subject in subjects %}
+                    <option value="{{ subject }}" {% if subject_filter == subject %}selected{% endif %}>{{ subject }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+
+        <div class="form-group">
+            <label for="time_filter">時間帯を選択</label>
+            <select class="form-control" id="time_filter" name="time_filter">
+                <option value="全時間帯" {% if time_filter == '全時間帯' %}selected{% endif %}>全時間帯</option>
+                <option value="午前: 06:00 - 11:59" {% if time_filter == '午前: 06:00 - 11:59' %}selected{% endif %}>午前: 06:00 - 11:59</option>
+                <option value="午後: 12:00 - 16:59" {% if time_filter == '午後: 12:00 - 16:59' %}selected{% endif %}>午後: 12:00 - 16:59</option>
+                <option value="夕方: 17:00 - 20:59" {% if time_filter == '夕方: 17:00 - 20:59' %}selected{% endif %}>夕方: 17:00 - 20:59</option>
+                <option value="夜間: 21:00 - 05:59" {% if time_filter == '夜間: 21:00 - 05:59' %}selected{% endif %}>夜間: 21:00 - 05:59</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="class_filter">クラスを選択</label>
+            <select class="form-control" id="class_filter" name="class_filter">
+                {% for cls in all_classes %}
+                    <option value="{{ cls }}" {% if class_filter == cls %}selected{% endif %}>{{ cls }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="from_date">表示する期間 (from)</label>
+            <input type="date" class="form-control" id="from_date" name="from_date" value="{{ from_date }}">
+        </div>
+
+        <div class="form-group">
+            <label for="to_date">表示する期間 (to)</label>
+            <input type="date" class="form-control" id="to_date" name="to_date" value="{{ to_date }}">
+        </div>
+        
+        <button type="submit" class="btn btn-primary">適用</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="plot-container">
+    <h2>学生別プロンプト数</h2>
+    {% if has_data %}
+        <div>{{ plot_html | safe }}</div>
+    {% else %}
+        <p>選択された条件に合うデータがありません。</p>
+    {% endif %}
+    
+    <div class="student-selection">
+        <h3>学生を選択</h3>
+        <form method="get" action="{{ url_for('student_prompt_counts.student_prompt_counts_page') }}">
+            <input type="hidden" name="grade_filter" value="{{ grade_filter }}">
+            <input type="hidden" name="subject_filter" value="{{ subject_filter }}">
+            <input type="hidden" name="time_filter" value="{{ time_filter }}">
+            <input type="hidden" name="class_filter" value="{{ class_filter }}">
+            <input type="hidden" name="from_date" value="{{ from_date }}">
+            <input type="hidden" name="to_date" value="{{ to_date }}">
+            
+            <select class="form-control student-select" id="selected_student" name="selected_student" onchange="this.form.submit()">
+                <option value="">選択してください</option>
+                {% for student in all_students %}
+                    <option value="{{ student.user_id }}" {% if selected_student == student.user_id %}selected{% endif %}>
+                        {{ student.last_name }} ({{ student.user_id }})
+                    </option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+
+    {% if has_student_data %}
+        <h3>{{ student_name }}のプロンプトと回答</h3>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 30%;">プロンプト</th>
+                        <th style="width: 50%;">回答</th>
+                        <th style="width: 20%;">送信日時</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in student_prompts %}
+                        <tr>
+                            <td>{{ item.prompt | safe }}</td>
+                            <td>{{ item.response | safe }}</td>
+                            <td>{{ item.prompt_datetime }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% elif selected_student %}
+        <p>選択された学生のデータがありません。</p>
+    {% endif %}
+</div>
+{% endblock %}

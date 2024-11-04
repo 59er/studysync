@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}ラーニングアシスタントAI{% endblock %}
+
+{% block content %}
+{% if selected_subject %}
+<div class="container mt-4">
+    <section class="current-subject">
+        <h1>現在の科目: {{ selected_subject }} 
+            <a href="{{ url_for('teacher_main.subject_selection') }}" class="change-subject-link">新しい科目の選択</a>
+        </h1>
+    </section>
+
+    <!-- フラッシュメッセージ -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- チャット部分 -->
+    <section class="chat-history">
+        <h3>チャット履歴 
+            <form action="{{ url_for('teacher_main.clear_chat') }}" method="post" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button type="submit" id="new-chat-btn" class="new-chat-btn">New Chat</button>
+            </form>
+        </h3>
+        <div class="chat-list" id="response-area">
+            {% if chat_history %}
+                {% for chat in chat_history %}
+                <div class="chat-entry">
+                    <p><strong>質問:</strong> {{ chat.prompt | e }}</p>
+                    <p><strong>難易度:</strong> {{ chat.difficulty }}</p>
+                    <p><strong>回答:</strong></p>
+                    <div class="response">{{ chat.response | markdown }}</div>
+                    <small>{{ chat.prompt_datetime }}</small>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p id="no-history">まだチャット履歴がありません。</p>
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- チャット入力部分 -->
+    <section class="chatbot">
+        <h3>質問入力</h3>
+        <form method="post" id="chat-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <input type="hidden" name="subject" value="{{ selected_subject }}">
+            <div class="input-container">
+                <textarea name="prompt" class="chat-input auto-resize" placeholder="質問を入力してください" required rows="1"></textarea>
+                <button type="submit" id="send-btn" class="send-btn" aria-label="送信"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </form>
+    </section>
+    
+    <!-- 画像生成部分 -->
+    <section class="image-generation">
+        <h3>画像生成</h3>
+        <form method="post" id="image-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <div class="input-container">
+                <textarea name="image_prompt" id="image_prompt" class="chat-input auto-resize" placeholder="画像生成をリクエストするテキストを入力してください" required rows="1"></textarea>
+                <button type="submit" class="send-btn" aria-label="画像生成"><i class="fas fa-image"></i></button>
+            </div>
+        </form>
+        <div id="image-result" style="margin-top: 10px; display: none;"></div>
+    </section>
+    
+    <p id="error-message" class="error-message" style="display:none;"></p>
+</div>
+{% else %}
+<p>現在の科目が選択されていません。<a href="{{ url_for('teacher_main.subject_selection') }}">科目を選択</a>してください。</p>
+{% endif %}
+
+<div id="loading-spinner" style="display:none;">
+    <div class="spinner"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    {% if session.get('update_qa') %}
+        updateQAHistory();
+        // フラグをリセット
+        fetch("{{ url_for('teacher_main.reset_update_flag') }}", {method: 'POST'});
+    {% endif %}
+});
+</script>
+{% endblock %}

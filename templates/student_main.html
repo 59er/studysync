@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}ラーニングアシスタントAI{% endblock %}
+
+{% block content %}
+<div class="container">
+    {% if selected_subject %}
+    <section class="current-subject">
+        <h1>現在の科目: {{ selected_subject }} 
+            <a href="{{ url_for('student_main.subject_selection') }}" class="change-subject-link">新しい科目の選択</a>
+        </h1>
+    </section>
+
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <ul class="flashes">
+              {% for category, message in messages %}
+                <li class="{{ category }}">{{ message }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        {% endwith %}
+
+    <section class="chat-history">
+        <h3>チャット履歴 
+            <form action="{{ url_for('student_main.clear_chat') }}" method="post" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button type="submit" id="new-chat-btn" class="new-chat-btn">New Chat</button>
+            </form>
+        </h3>
+        <div class="chat-list" id="response-area">
+            {% if chat_history %}
+                {% for chat in chat_history %}
+                <div class="chat-entry">
+                    <p><strong>質問:</strong> {{ chat.prompt | e }}</p>
+                    <p><strong>難易度:</strong> {{ chat.difficulty }}</p>
+                    <p><strong>回答:</strong></p>
+                    <!-- <div class="response">{{ chat.response | safe }}</div> -->
+                    <div class="response">{{ chat.response | markdown }}</div>
+
+                    <small>{{ chat.prompt_datetime }}</small>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p id="no-history">まだチャット履歴がありません。</p>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="chatbot">
+        <h3>質問入力</h3>
+        <form method="post" id="chat-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <input type="hidden" name="subject" value="{{ selected_subject }}">
+            <input type="hidden" name="grade_level" value="{{ session['grade_id'] }}">
+            <div class="input-container">
+                <textarea name="prompt" class="chat-input auto-resize" placeholder="質問を入力してください" required rows="1"></textarea>
+                <button type="submit" id="send-btn" class="send-btn" aria-label="送信"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </form>
+    </section>
+    
+    <section class="image-generation">
+        <h3>画像生成</h3>
+        <form method="post" id="image-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <div class="input-container">
+                <textarea name="image_prompt" id="image_prompt" class="chat-input auto-resize" placeholder="画像生成をリクエストするテキストを入力してください" required rows="1"></textarea>
+                <button type="submit" class="send-btn" aria-label="画像生成"><i class="fas fa-image"></i></button>
+            </div>
+        </form>
+        <div id="image-result" style="margin-top: 10px; display: none;"></div>
+    </section>
+    
+    <p id="error-message" class="error-message" style="display:none;"></p>
+    {% else %}
+    <p>現在の科目が選択されていません。<a href="{{ url_for('student_main.subject_selection') }}">科目を選択</a>してください。</p>
+    {% endif %}
+</div>
+
+<div id="loading-spinner" style="display:none;">
+    <div class="spinner"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- この部分は空にしておき、必要な場合のみ追加のJavaScriptを記述します -->
+{% endblock %}

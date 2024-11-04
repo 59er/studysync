@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block head %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+{% endblock %}
+
+{% block title %}プロンプト数の推移{% endblock %}
+
+{% block sidebar %}
+<div class="sidebar">
+    <ul>
+        <li>
+            <input type="radio" name="menu" id="home-menu" {% if request.endpoint and (request.endpoint.startswith('student_main') or request.endpoint.startswith('teacher_main')) %}checked{% endif %}>
+            <label for="home-menu">
+                <a href="{{ url_for('teacher_main.subject_selection' if session.get('is_staff') == 1 else 'student_main.subject_selection') }}" class="menu-item">ホーム</a>
+            </label>
+        </li>
+
+        <li>
+            <input type="radio" name="menu" id="password-menu" {% if request.endpoint == 'common.change_password' %}checked{% endif %}>
+            <label for="password-menu">
+                <a href="{{ url_for('common.change_password') }}" class="menu-item">パスワード変更</a>
+            </label>
+        </li>
+
+        {% if session.get('is_staff') %}
+        <li>
+            <input type="radio" name="menu" id="admin_menu" {% if request.endpoint and request.endpoint.startswith('prompt_trends') %}checked{% endif %}>
+            <label for="admin_menu" class="menu-item">管理者メニュー</label>
+        </li>
+
+        <li>
+            <select id="admin-menu-select" name="admin-menu" class="admin-menu" aria-label="管理者メニュー" onchange="navigateToPage(this)">
+                <option value="" disabled {% if not request.endpoint or not request.endpoint.startswith('prompt_trends') %}selected{% endif %}>管理者メニューを選択</option>
+                <option value="{{ url_for('prompt_trends.prompt_trends_page') }}" {% if request.endpoint == 'prompt_trends.prompt_trends_page' %}selected{% endif %}>プロンプト数推移</option>
+            </select>
+        </li>
+        {% endif %}
+    </ul>
+</div>
+{% endblock %}
+
+{% block filters %}
+<div class="data-analysis-filters">
+    <form method="get" action="{{ url_for('prompt_trends.prompt_trends_page') }}">
+        <h3>フィルタオプション</h3>
+        <div class="form-group">
+            <label for="admission_year_filter">入学年度を選択</label>
+            <select class="form-control" id="admission_year_filter" name="admission_year_filter">
+                {% for year in admission_years %}
+                    <option value="{{ year }}" {% if admission_year_filter == year %}selected{% endif %}>{{ year }}年度</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="grade_filter">学年を選択</label>
+            <select class="form-control" id="grade_filter" name="grade_filter">
+                <option value="高校1年" {% if grade_filter == '高校1年' %}selected{% endif %}>高校1年</option>
+                <option value="高校2年" {% if grade_filter == '高校2年' %}selected{% endif %}>高校2年</option>
+                <option value="高校3年" {% if grade_filter == '高校3年' %}selected{% endif %}>高校3年</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="time_period">表示間隔</label>
+            <select class="form-control" id="time_period" name="time_period">
+                <option value="日次" {% if time_period == '日次' %}selected{% endif %}>日次</option>
+                <option value="週次" {% if time_period == '週次' %}selected{% endif %}>週次</option>
+                <option value="月次" {% if time_period == '月次' %}selected{% endif %}>月次</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="subject_filter">科目を選択</label>
+            <select class="form-control" id="subject_filter" name="subject_filter">
+                <option value="全科目" {% if subject_filter == '全科目' %}selected{% endif %}>全科目</option>
+                {% for subject in subjects %}
+                    <option value="{{ subject }}" {% if subject_filter == subject %}selected{% endif %}>{{ subject }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="time_filter">時間帯を選択</label>
+            <select class="form-control" id="time_filter" name="time_filter">
+                <option value="全時間帯" {% if time_filter == '全時間帯' %}selected{% endif %}>全時間帯</option>
+                <option value="午前" {% if time_filter == '午前' %}selected{% endif %}>午前 (06:00 - 11:59)</option>
+                <option value="午後" {% if time_filter == '午後' %}selected{% endif %}>午後 (12:00 - 16:59)</option>
+                <option value="夕方" {% if time_filter == '夕方' %}selected{% endif %}>夕方 (17:00 - 20:59)</option>
+                <option value="夜間" {% if time_filter == '夜間' %}selected{% endif %}>夜間 (21:00 - 05:59)</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="from_date">表示する期間 (from)</label>
+            <input type="date" class="form-control" id="from_date" name="from_date" value="{{ from_date }}">
+        </div>
+        <div class="form-group">
+            <label for="to_date">表示する期間 (to)</label>
+            <input type="date" class="form-control" id="to_date" name="to_date" value="{{ to_date }}">
+        </div>
+        <button type="submit" class="sidebar-apply-button">適用</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    <h2>プロンプト数の推移</h2>
+
+    <div class="graphs-container">
+        {% for plot in plots %}
+            <div class="plot-wrapper">
+                {{ plot|safe }}
+            </div>
+        {% endfor %}
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function navigateToPage(selectElement) {
+    if (selectElement.value) {
+        window.location.href = selectElement.value;
+    }
+}
+</script>
+{% endblock %}

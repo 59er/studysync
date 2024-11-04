@@ -1,0 +1,342 @@
+/* 全体のレイアウト */
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+}
+
+.wrapper {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* サイドバー */
+.sidebar {
+    width: 220px;
+    background-color: #f8f9fa;
+    padding: 20px;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+    position: relative; /* スクロールバーの位置決めの基準点 */
+    
+}
+
+.sidebar ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    /*max-height: auto; /*表示する最大高さを設定*/
+     max-height: 600px; /*表示する最大高さを設定*/
+    overflow-y: auto; /* 垂直スクロールを適用 */
+    padding-right: 10px;
+    margin-right: -20px; /* スクロールバーを右端に寄せる */
+}
+
+.sidebar ul li {
+    margin-bottom: 10px;
+    display: flex; /* フレックスボックスで配置 */
+    align-items: center; /* ラジオボタンとテキストを縦中央揃え */
+}
+
+.sidebar ul li label {
+    margin-left: 5px; /* ラジオボタンとテキストの間に余白を追加 */
+}
+.sidebar ul li a {
+    text-decoration: none;
+    color: #333;
+    display: block;
+    padding: 5px 0;
+    white-space: nowrap; /* ホームが改行されないように */
+    font-weight: normal; /* ボールドを解除 */
+}
+
+.qa-history-sidebar h3 {
+    font-weight: normal; /* ボールドを解除 */
+}
+
+
+
+/* スクロールバー全体の設定 */
+.sidebar ul::-webkit-scrollbar {
+    width: 6px; /* 縦スクロールバーの幅 */
+    height: 9px; /* 横スクロールバーの高さを小さく設定 */
+}
+
+/* スクロールバーのトラック（背景部分） */
+.sidebar ul::-webkit-scrollbar-track {
+    background: #f1f1f1; /* スクロールバーの背景 */
+}
+
+/* スクロールバーのハンドル（バー部分） */
+.sidebar ul::-webkit-scrollbar-thumb {
+    background: #888; /* スクロールバーの色 */
+    border-radius: 10px; /* 丸みを設定 */
+}
+
+/* スクロールバーのハンドルがホバーされたときの色 */
+.sidebar ul::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+
+/* メインコンテンツ */
+.main-content {
+    flex: 1;
+    padding: 20px;
+    max-width: 800px; /* コンテンツの最大幅を制限 */
+    margin: 0 auto; /* 中央寄せ */
+}
+
+/* ヘッダー */
+.top-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.page-title {
+    font-size: 24px;
+    margin: 0;
+}
+
+.user-controls {
+    display: flex;
+    align-items: center;
+}
+
+.username {
+    margin-right: 10px;
+}
+
+.logout-btn {
+    padding: 5px 10px;
+    background-color: white;
+    color: #f44336;
+    border: 1px solid #f44336;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.logout-btn:hover {
+    background-color: #f44336;
+    color: white;
+}
+
+/* 科目選択セクション */
+.subject-selection {
+    margin-bottom: 20px;
+}
+
+.subject-selection h2 {
+    font-size: 21px; /* 科目の選択のフォントサイズを統一 */
+    margin-bottom: 10px;
+}
+
+.subject-selection select {
+    width: 100%;
+    max-width: 400px;
+    padding: 8px;
+    margin-bottom: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.subject-selection button {
+    padding: 8px 15px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+/* チャットボットセクション */
+.chatbot-section {
+    margin-top: 20px;
+}
+
+.current-subject {
+    font-size: 21px; /* 現在の科目のフォントサイズを統一 */
+    margin-bottom: 15px;
+}
+
+.change-subject-link {
+    font-size: 18px;
+    margin-left: 10px;
+    color: #007bff;
+    text-decoration: underline; /* アンダーラインを追加 */
+    font-weight: normal; /* ボールドに戻す */
+}
+
+.chat-input-container {
+    width: 100%;
+}
+
+.input-container {
+    display: flex;
+    margin-bottom: 10px;
+}
+
+.chat-input {
+    flex-grow: 1;
+    margin-right: 10px;
+    /* 既存のスタイルはそのまま維持 */
+    width: calc(100% - 20px);
+    min-height: 38px;
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    resize: vertical;
+    line-height: 1.5;
+    overflow-y: hidden;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.send-btn {
+    align-self: flex-end;
+    /* 既存のスタイルはそのまま維持 */
+    padding: 8px 15px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.image-prompt-input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 4px; /* 角を丸める */
+}
+
+.generate-btn {
+    padding: 8px 12px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.generate-btn:hover {
+    background-color: #0056b3;  /* ホバー時の背景色 */
+    color: white;  /* テキストの色は変えない */
+}
+
+
+/*レスポンシブデザイン*/
+@media (max-width: 768px) {
+    .wrapper {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        width: 100%;
+        box-shadow: none;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .main-content {
+        padding: 10px;
+    }
+
+    .top-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .user-controls {
+        margin-top: 10px;
+    }
+}
+
+
+html {
+    overflow-y: scroll;
+}
+
+::-webkit-scrollbar {
+width: 5px;
+}
+
+::-webkit-scrollbar-track {
+background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+background: rgba(0, 0, 0, 0.2);
+border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+background: rgba(0, 0, 0, 0.4);
+}
+
+.btn-icon {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 20px;
+    color: #007bff;  /* 青色 */
+}
+.btn-icon:focus {
+    outline: none;
+}
+
+
+
+
+.chat-list {
+    max-height: 500px; /* または適切な高さ */
+    overflow-y: auto;
+    padding-right: 10px;
+    margin-bottom: 20px;
+}
+
+.chat-list::-webkit-scrollbar {
+    width: 5px;
+}
+
+.chat-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.chat-list::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
+
+.chat-list::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+.new-chat-btn {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-left: 10px;
+}
+
+.new-chat-btn:hover {
+    background-color: #45a049;
+}
+
+.error-message {
+    background-color: #ffebee;
+    color: #c62828;
+    padding: 10px;
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+
+
+
+
