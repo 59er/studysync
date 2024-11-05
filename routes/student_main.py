@@ -6,6 +6,7 @@ from .. import db
 from sqlalchemy import func, desc, and_
 from sqlalchemy.exc import SQLAlchemyError
 from flask_wtf import CSRFProtect
+from ..utils import load_subjects
 
 bp = Blueprint('student_main', __name__, url_prefix='/student')
 
