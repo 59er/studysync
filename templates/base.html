@@ -215,7 +215,7 @@
                     error: function(jqXHR, textStatus, errorThrown) {
                         console.error("Error loading QA history:", textStatus, errorThrown);
                         console.error("Response:", jqXHR.responseText);
-                        $('#qa-history-list').html('<li>履歴の読み込みに失敗しました。</li>');
+                        $('#qa-history-list').empty();
                         updateArrowIcon();
                     }
                 });
