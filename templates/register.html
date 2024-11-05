@@ -77,10 +77,13 @@
     }
 
     .alert {
-        padding: 12px;
-        margin-bottom: 20px;
+        padding: 15px;
+        margin-bottom: 15px;
         border: 1px solid transparent;
         border-radius: 4px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
 
     .alert-success {
@@ -93,6 +96,23 @@
         color: #721c24;
         background-color: #f8d7da;
         border-color: #f5c6cb;
+    }
+
+    .alert-close {
+        background: none;
+        border: none;
+        float: right;
+        font-size: 1.5em;
+        font-weight: bold;
+        line-height: 1;
+        color: inherit;
+        opacity: .5;
+        padding: 0 0 0 15px;
+        cursor: pointer;
+    }
+
+    .alert-close:hover {
+        opacity: .75;
     }
 
     a {
@@ -110,20 +130,19 @@
 
 {% block content %}
 <div class="container upload-container">
-    <!-- フラッシュメッセージを最初に表示
-    <div class="flash-message-container">
+    <!-- フラッシュメッセージ表示部分 -->
+    <div class="flash-messages">
         {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            <div class="alert-container">
-              {% for category, message in messages %}
-                <div class="alert alert-{{ category }}" role="alert">
-                  {{ message }}
-                </div>
-              {% endfor %}
-            </div>
-          {% endif %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible">
+                        {{ message }}
+                        <button type="button" class="alert-close" onclick="this.parentElement.style.display='none'">&times;</button>
+                    </div>
+                {% endfor %}
+            {% endif %}
         {% endwith %}
-    </div> -->
+    </div>
 
     <!-- ユーザー情報アップロードセクション -->
     <div class="upload-section">
@@ -138,7 +157,7 @@
                 <li>email: 文字列（メールアドレスが無い場合は、example@example.comなどを入力）</li>
                 <li>grade_id: 数値</li>
                 <li>class_id: 文字列</li>
-                <li>is_staff: 'TRUE' または 'FALSE'（文字列）。学生はFALSE or 0。管理機能利用者はTRUE or 1。</li>
+                <li>is_staff: 'TRUE' または 'FALSE'（文字列）。学生はFALSE。管理機能利用者はTRUE。</li>
                 <li>user_id: 文字列（ユニークID）</li>
                 <li>admission_year: 入学年度（数値）</li>
             </ul>
