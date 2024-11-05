@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}サーバーエラー{% endblock %}
+{% block content %}
+
+<div class="error-container">
+    <h1>500 - サーバーエラーが発生しました</h1>
+    <p>申し訳ありません。サーバーで問題が発生しました。</p>
+    <a href="{{ url_for('student_main.subject_selection') }}">ホームに戻る</a>
+</div>
+{% endblock %}
+
+
